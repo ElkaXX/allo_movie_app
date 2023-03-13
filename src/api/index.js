@@ -32,10 +32,16 @@ export async function getMovieDetails(id) {
     return response.data;
 }
 
-export async function searchMovies(query) {
+export async function getMoviesDetails(movieIds) {
+    const result = movieIds.map(async (movieId) => await getMovieDetails(movieId));
+    return await Promise.all(result);
+}
+
+export async function searchMovies(query, page) {
     const config = {
         params: {
-            query
+            query,
+            page
         }
     }
     const response = await api.get(searchMoviesRoute, config);

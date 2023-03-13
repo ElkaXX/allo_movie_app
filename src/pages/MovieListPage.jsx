@@ -1,30 +1,49 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { discoverMovies, searchMovies } from '../api';
-import ReactPaginate from 'react-paginate';
+import * as api from '../api';
+import Pagination from '../components/Pagination';
 import Search from '../components/Search';
+import MovieList from '../components/MovieList';
 import TopBarProgress from 'react-topbar-progress-indicator';
 
 function MovieListPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [page, setPage] = useState(1);
+  const [searchText, setSearchText] = useState('');
   const [moviesResponse, setMoviesResponse] = useState(null);
 
   useEffect(() => {
+    discoverMovies();
+  }, []);
+
+  useEffect(() => {
+    if (searchText === null || searchText === '') {
+      discoverMovies();
+    } else {
+      searchMovies(searchText);
+    }
+  }, [searchText, page]);
+
+  const discoverMovies = () => {
     setIsLoading(true);
-    discoverMovies(page)
-      .then((response) => {
-        setMoviesResponse(response);
-        window.scrollTo(0, 0);
-      })
+    api
+      .discoverMovies(page)
+      .then((response) => setMoviesResponse(response))
       .catch((error) => console.log(error))
       .finally(() => setIsLoading(false));
-  }, [page]);
+  };
 
-  const onTextChanged = (text) => {
-    searchMovies(text)
+  const searchMovies = (query) => {
+    setIsLoading(true);
+    api
+      .searchMovies(query, page)
       .then((response) => setMoviesResponse(response))
-      .catch((error) => console.error(error));
+      .catch((error) => console.error(error))
+      .finally(() => setIsLoading(false));
+  };
+
+  const handleOnSearchTextChanged = (text) => {
+    setPage(1);
+    setSearchText(text);
   };
 
   if (isLoading || moviesResponse === null) {
@@ -33,42 +52,13 @@ function MovieListPage() {
 
   return (
     <div className="container mx-auto max-w-4xl">
-      <Search textChanged={onTextChanged} />
-      <ul className="mt-10 grid grid-cols-4 gap-4">
-        {moviesResponse.results.map((movie) => (
-          <li
-            key={movie.id}
-            className="w-[200px] text-center bg-zinc-100 border-[1px] border-zinc-200"
-          >
-            <Link to={`movie/${movie.id}`}>
-              <img src={movie.poster_path} alt={movie.title} />
-              <p className="mt-1">{movie.title}</p>
-            </Link>
-          </li>
-        ))}
-      </ul>
-
-      <div className="flex flex-col items-center my-8">
-        <ReactPaginate
-          pageCount={500}
-          previousLabel={'Previous'}
-          nextLabel={'Next'}
-          breakLabel={'...'}
-          onPageChange={({ selected }) => setPage(selected + 1)}
-          forcePage={page - 1}
-          containerClassName={'pagination flex justify-center items-center'}
-          pageClassName={'flex items-center justify-center w-8 h-8 px-1 border rounded mx-1'}
-          activeClassName={'bg-blue-500 text-white'}
-          disabledClassName={'opacity-50'}
-          previousClassName={'flex items-center justify-center px-1 border rounded mr-1'}
-          nextClassName={'flex items-center justify-center border rounded ml-1'}
-          previousLinkClassName={'block w-full h-full text-center leading-8'}
-          nextLinkClassName={'block w-full h-full text-center px-1 leading-8'}
-          breakClassName={'flex items-center justify-center w-8 h-8 px-1 border rounded mx-1'}
-          breakLinkClassName={'block w-full h-full text-center leading-8'}
-          pageLinkClassName={'block w-[100%] text-center'}
-        />
-      </div>
+      <Search textChanged={handleOnSearchTextChanged} searchText={searchText} />
+      <MovieList movies={moviesResponse.results} />
+      <Pagination
+        page={page}
+        pageCount={moviesResponse.total_pages > 500 ? 500 : moviesResponse.total_pages}
+        onPageChange={(page) => setPage(page)}
+      />
     </div>
   );
 }
